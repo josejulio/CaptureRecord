@@ -35,27 +35,56 @@
 @implementation CRScreenRecorder
 
 - (id)init {
-  if ((self = [super init])) {
-    void *UIKit = dlopen(UIKITPATH, RTLD_LAZY);    
-    NSString *methodName = [CRUtils cr_rot13:@"HVTrgFperraVzntr"]; // UIGetScreenImage
-    _CRGetScreenImage = dlsym(UIKit, [methodName UTF8String]);
-    dlclose(UIKit);
+    if ((self = [super init])) {
+        void *UIKit = dlopen(UIKITPATH, RTLD_LAZY);
+        NSString *methodName = [CRUtils cr_rot13:@"HVTrgFperraVzntr"]; // UIGetScreenImage
+        _CRGetScreenImage = dlsym(UIKit, [methodName UTF8String]);
+        dlclose(UIKit);
+        
+        _size = [UIScreen mainScreen].bounds.size;
+        _size.height *= 0.5;
+        _size.width *= 0.5;
+    }
+    return self;
+}
+
+- (UIImage *) imageByRenderingViewOpaque:(BOOL) yesOrNO {
+    UIWindow* mainWindow = [[UIApplication sharedApplication].windows objectAtIndex:0];
     
-    _size = [UIScreen mainScreen].bounds.size;
-  }
-  return self;
+    UIGraphicsBeginImageContextWithOptions(mainWindow.bounds.size, yesOrNO, 0);
+    
+    if ([mainWindow respondsToSelector:@selector(drawViewHierarchyInRect:afterScreenUpdates:)]) {
+        [mainWindow drawViewHierarchyInRect:mainWindow.bounds afterScreenUpdates:NO];
+    }
+    else {
+        [mainWindow.layer renderInContext:UIGraphicsGetCurrentContext()];
+    }
+    UIImage *resultingImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return resultingImage;
+}
+- (UIImage *) imageByRenderingView{
+    return [self imageByRenderingViewOpaque:NO];
 }
 
 - (void)renderInContext:(CGContextRef)context videoSize:(CGSize)videoSize {
-  if (!_CRGetScreenImage) return;
-  CGImageRef (*CRGetScreenImage)() = _CRGetScreenImage;
-  CGImageRef image = CRGetScreenImage();
-  CGContextDrawImage(context, CGRectMake(0, 0, _size.width, _size.height), image);
-  CGImageRelease(image);
+    //if (!_CRGetScreenImage) return;
+    //CGImageRef (*CRGetScreenImage)() = _CRGetScreenImage;
+    //CGImageRef image = CRGetScreenImage();
+    //static UIImage* lastImage = nil;
+    //if (lastImage) {
+        
+    //}
+    // más opciones, pero no funcionaron: http://stackoverflow.com/questions/21415080/make-screenshot-of-the-whole-screen-in-ios7n
+    
+    UIImage* current = [self imageByRenderingView];
+    CGImageRef image = current.CGImage;
+    CGContextDrawImage(context, CGRectMake(0, 0, _size.width, _size.height), image);
+    //CGImageRelease(image);
 }
 
 - (CGSize)size {
-  return CGSizeMake(_size.width, _size.height);
+    return CGSizeMake(_size.width, _size.height);
 }
 
 @end
